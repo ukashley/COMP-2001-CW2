@@ -4,8 +4,7 @@ from routes.trails import trail_bp
 import logging
 
 # Configure logging for SQLAlchemy queries
-logging.basicConfig()
-logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
 connex_app.add_api("swagger.yml")  
 app = connex_app.app
