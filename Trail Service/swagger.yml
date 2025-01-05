@@ -1,0 +1,80 @@
+openapi: "3.0.0"
+info:
+  title: "Trail Service API"
+  version: "1.0.0"
+servers:
+  - url: "http://127.0.0.1:8000"
+paths:
+  /api/trails:
+    get:
+      summary: "Retrieve all trails"
+      operationId: "routes.trails.get_trails"
+      responses:
+        "200":
+          description: "List of trails"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trail"
+    post:
+      summary: "Create a new trail"
+      operationId: "routes.trails.create_trail"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Trail"
+      responses:
+        "201":
+          description: "Trail created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trail"
+  /api/trails/{trail_id}:
+    put:
+      summary: "Update an existing trail"
+      operationId: "routes.trails.update_trail"
+      parameters:
+        - name: "trail_id"
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Trail"
+      responses:
+        "200":
+          description: "Trail updated successfully"
+    delete:
+      summary: "Delete a trail"
+      operationId: "routes.trails.delete_trail"
+      parameters:
+        - name: "trail_id"
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Trail deleted successfully"
+components:
+  schemas:
+    Trail:
+      type: object
+      properties:
+        name:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        owner_id:
+          type: integer
