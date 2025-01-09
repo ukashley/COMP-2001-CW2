@@ -5,9 +5,9 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 class User(db.Model):
     __tablename__ = "USER"
     __table_args__ = {"schema": "CW2"}
-    user_id = db.Column("UserID", db.Integer, primary_key=True)
-    email_address = db.Column(db.String(255), nullable=False, unique=True)
-    role = db.Column(db.String(50))
+    UserID = db.Column("UserID", db.Integer, primary_key=True)
+    Email_Address = db.Column(db.String(255), nullable=False, unique=True)
+    Role = db.Column(db.String(50))
 
 # Trail Table
 class Trail(db.Model):

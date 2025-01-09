@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request
 from config import db
 from models.trail import Trail, User, trail_schema, trails_schema
-from routes.auth import verify_user
 from sqlalchemy.exc import SQLAlchemyError
 
 trail_bp = Blueprint("trail_bp", __name__)
@@ -9,21 +8,25 @@ trail_bp = Blueprint("trail_bp", __name__)
 @trail_bp.route('/trails', methods=['POST'])
 def create_trail():
     """
-    Create a new trail.
+    Create a new trail. For Admins Only
     """
     try:
+        user_email = request.headers.get("user_email")
+        if not user_email:
+            return jsonify({"error": "Missing user_email in headers"}), 400
+
+        # Fetching users and verifying their roles
+        user = User.query.filter_by(Email_Address=user_email).first()
+        if not user or user.Role != "Admin":
+            return jsonify({"error": "Disallowed: Only admins can create"}), 403
+
         data = request.json
-        
-        # Validate required fields
+
+        # Validation of required fields
         required_fields = ['trail_name', 'location', 'owner_id']
         missing_fields = [field for field in required_fields if not data.get(field)]
         if missing_fields:
             return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
-
-        # Verify owner ID using the authenticator API
-        user = verify_user(data['owner_id'])
-        if not user:
-            return jsonify({"error": "Invalid owner ID or authentication failed"}), 400
 
         # Create a new trail
         new_trail = Trail(
@@ -32,10 +35,10 @@ def create_trail():
             owner_id=data.get('owner_id'),
             summary=data.get('summary', ""),
             description=data.get('description', ""),
-            difficulty=data.get('difficulty', "Moderate"),
-            length=data.get('length', 0.0),
-            elevation_gain=data.get('elevation_gain', 0.0),
-            route_type=data.get('route_type', "Unknown"),
+            difficulty=data.get('difficulty'),
+            length=data.get('length'),
+            elevation_gain=data.get('elevation_gain'),
+            route_type=data.get('route_type'),
             pt1_lat=data.get('pt1_lat'),
             pt1_long=data.get('pt1_long'),
             pt1_desc=data.get('pt1_desc'),
@@ -43,8 +46,7 @@ def create_trail():
             pt2_long=data.get('pt2_long'),
             pt2_desc=data.get('pt2_desc')
         )
-        
-        # Add to the database
+
         db.session.add(new_trail)
         db.session.commit()
 
@@ -53,82 +55,127 @@ def create_trail():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"error": f"Database error: {str(e)}"}), 500
-    except ValueError as e:
-        return jsonify({"error": f"Value error: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-
+@trail_bp.route('/trails', methods=['GET'])
 def get_trails():
+    """
+    Retrieve all trails. For Admins only.
+    """
     try:
-        # Fetch all trails from the database
-        trails = Trail.query.all()
+        user_email = request.headers.get("user_email")
+        if not user_email:
+            return jsonify({"error": "Missing user_email in headers"}), 400
 
-        # Serialize the trails using Marshmallow
-        serialized_trails = trails_schema.dump(trails)
+        user = User.query.filter_by(Email_Address=user_email).first()
+        if not user:
+            return jsonify({"error": "Invalid user_email"}), 403
 
-        # Use Flask's jsonify to return the serialized data
-        return jsonify(serialized_trails), 200
+        if user.Role == "Admin":
+            trails = Trail.query.all()
+            return jsonify(trails_schema.dump(trails)), 200
+        else:
+            trails = Trail.query.with_entities(
+                Trail.id, Trail.name, Trail.summary, Trail.location, Trail.length
+            ).all()
+            return jsonify(
+                [{"id": t.id, "name": t.name, "summary": t.summary, "location": t.location, "length": t.length} for t in trails]
+            ), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch trails: {e}"}), 500
 
-
+@trail_bp.route('/trails/<int:trail_id>', methods=['GET'])
 def get_trail(trail_id):
-    """Retrieve a single trail by ID."""
+    """
+    Retrieve a single trail by ID. 
+    """
     try:
+        # Get user_email from headers
+        user_email = request.headers.get('user_email')
+        if not user_email:
+            return jsonify({"error": "Missing user_email in headers"}), 400
+
+        # Verify the user
+        user = User.query.filter_by(Email_Address=user_email).first()
+        if not user:
+            return jsonify({"error": "Invalid user_email"}), 403
+
+        # Fetch the trail
         trail = Trail.query.get(trail_id)
         if not trail:
             return jsonify({"error": "Trail not found"}), 404
 
-        # Serialize the trail using Marshmallow
-        serialized_trail = trail_schema.dump(trail)
+        # Check the user's role
+        if user.Role == "Admin":
+            # Admin can view all trail details
+            return jsonify(trail_schema.dump(trail)), 200
+        else:
+            # Regular users can view limited trail details
+            limited_trail = {
+                "name": trail.name,
+                "summary": trail.summary,
+                "location": trail.location,
+                "length": trail.length
+            }
+            return jsonify(limited_trail), 200
 
-        # Use Flask's jsonify to return the serialized data
-        return jsonify(serialized_trail), 200
+    except SQLAlchemyError as e:
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({"error": f"Failed to fetch trail: {e}"}), 500
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
+@trail_bp.route('/trails/<int:trail_id>', methods=['PUT'])
 def update_trail(trail_id):
-    """Update an existing trail."""
+    """
+    Update an existing trail. For Admins only.
+    """
     try:
-        data = request.json
+        user_email = request.headers.get("user_email")
+        if not user_email:
+            return jsonify({"error": "Missing user_email in headers"}), 400
 
-        # Find the trail
+        user = User.query.filter_by(Email_Address=user_email).first()
+        if not user or user.Role != "Admin":
+            return jsonify({"error": "Disallowed: Only admins can update trails"}), 403
+
+        data = request.json
         trail = Trail.query.get(trail_id)
         if not trail:
             return jsonify({"error": "Trail not found"}), 404
-
-        # Update the trail fields
+          # Update the trail fields
         trail.name = data.get("name", trail.name)
         trail.summary = data.get("summary", trail.summary)
         trail.description = data.get("description", trail.description)
         trail.location = data.get("location", trail.location)
         trail.owner_id = data.get("owner_id", trail.owner_id)
-
-        # Commit the updates to the database
         db.session.commit()
+        return jsonify(trail_schema.dump(trail)), 200
 
-        # Serialize the updated trail
-        serialized_trail = trail_schema.dump(trail)
-
-        # Use Flask's jsonify to return the serialized data
-        return jsonify(serialized_trail), 200
     except Exception as e:
         return jsonify({"error": f"Failed to update trail: {e}"}), 500
 
+@trail_bp.route('/trails/<int:trail_id>', methods=['DELETE'])
 def delete_trail(trail_id):
-    """Delete a trail."""
+    """
+    Delete a trail. For Admins Only
+    """
     try:
-        # Find the trail
+        user_email = request.headers.get("user_email")
+        if not user_email:
+            return jsonify({"error": "Missing user_email in headers"}), 400
+
+        user = User.query.filter_by(Email_Address=user_email).first()
+        if not user or user.Role != "Admin":
+            return jsonify({"error": "Disallowed: Only admins can delete trails"}), 403
+
         trail = Trail.query.get(trail_id)
         if not trail:
             return jsonify({"error": "Trail not found"}), 404
 
-        # Delete the trail
         db.session.delete(trail)
         db.session.commit()
-
-        # Return a success message
         return jsonify({"message": "Trail deleted successfully"}), 200
+
     except Exception as e:
         return jsonify({"error": f"Failed to delete trail: {e}"}), 500

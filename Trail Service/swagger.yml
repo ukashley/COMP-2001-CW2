@@ -8,7 +8,16 @@ paths:
   /api/trails:
     get:
       summary: "Retrieve all trails"
+      description: "Trails to be retrieved."
       operationId: "routes.trails.get_trails"
+      parameters:
+        - name: "user_email"
+          in: header
+          required: true
+          schema:
+            type: string
+          description: >
+            The email of the user making the request. 
       responses:
         "200":
           description: "List of trails"
@@ -18,9 +27,40 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Trail"
+        "400":
+          description: "Unsuccessful Request"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Missing user_email in headers"
+        "403":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid user_email"
+
     post:
       summary: "Create a new trail"
+      description: >
+        Only Admins can create a new trail.
       operationId: "routes.trails.create_trail"
+      parameters:
+        - name: "user_email"
+          in: header
+          required: true
+          schema:
+            type: string
+          description: >
+            The email of the Admin making the request.
       requestBody:
         content:
           application/json:
@@ -33,9 +73,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Trail"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Disallowed"
   /api/trails/{trail_id}:
+    get:
+      summary: "Retrieve a trail by ID"
+      description: >
+        Retrieve a single trail by ID. 
+      operationId: "routes.trails.get_trail"
+      parameters:
+        - name: "trail_id"
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: "user_email"
+          in: header
+          required: true
+          schema:
+            type: string
+          description: >
+            The email of the user making the request. 
+      responses:
+        "200":
+          description: "Trail retrieved successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trail"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Disallowed"
+        "404":
+          description: "Trail not found"
     put:
       summary: "Update an existing trail"
+      description: >
+        Only Admin users can update a trail.
       operationId: "routes.trails.update_trail"
       parameters:
         - name: "trail_id"
@@ -43,6 +120,13 @@ paths:
           required: true
           schema:
             type: integer
+        - name: "user_email"
+          in: header
+          required: true
+          schema:
+            type: string
+          description: >
+            The email of the Admin making the request.
       requestBody:
         content:
           application/json:
@@ -51,8 +135,16 @@ paths:
       responses:
         "200":
           description: "Trail updated successfully"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Disallowed"
+        "404":
+          description: "Trail not found"
     delete:
       summary: "Delete a trail"
+      description: >
+        Only Admin users can delete a trail.
       operationId: "routes.trails.delete_trail"
       parameters:
         - name: "trail_id"
@@ -60,14 +152,29 @@ paths:
           required: true
           schema:
             type: integer
+        - name: "user_email"
+          in: header
+          required: true
+          schema:
+            type: string
+          description: >
+            The email of the Admin making the request.
       responses:
         "200":
           description: "Trail deleted successfully"
+        "401":
+          description: "Unauthorized"
+        "403":
+          description: "Disallowed"
+        "404":
+          description: "Trail not found"
 components:
   schemas:
     Trail:
       type: object
       properties:
+        id:
+          type: integer
         name:
           type: string
         summary:
@@ -78,3 +185,11 @@ components:
           type: string
         owner_id:
           type: integer
+        length:
+          type: integer
+        elevation_gain:
+          type: integer
+        difficulty:
+          type: string
+        route_type:
+          type: string
