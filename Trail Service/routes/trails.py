@@ -72,12 +72,17 @@ def get_trails():
         if not user:
             return jsonify({"error": "Invalid user_email"}), 403
 
-        if user.Role == "Admin":
-            trails = Trail.query.all()
-            return jsonify(trails_schema.dump(trails)), 200
+        # Explicitly check if the user is an Admin
+        if user.Role != "Admin":
+            return jsonify({"error": "Forbidden: Only Admins can view all trails"}), 403
+
+        # Admin users can retrieve all trails
+        trails = Trail.query.all()
+        return jsonify(trails_schema.dump(trails)), 200
 
     except Exception as e:
         return jsonify({"error": f"Failed to fetch trails: {e}"}), 500
+
 
 @trail_bp.route('/trails/<int:trail_id>', methods=['GET'])
 def get_trail(trail_id):
