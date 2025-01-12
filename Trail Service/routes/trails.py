@@ -75,13 +75,7 @@ def get_trails():
         if user.Role == "Admin":
             trails = Trail.query.all()
             return jsonify(trails_schema.dump(trails)), 200
-        else:
-            trails = Trail.query.with_entities(
-                Trail.id, Trail.name, Trail.summary, Trail.location, Trail.length
-            ).all()
-            return jsonify(
-                [{"id": t.id, "name": t.name, "summary": t.summary, "location": t.location, "length": t.length} for t in trails]
-            ), 200
+
     except Exception as e:
         return jsonify({"error": f"Failed to fetch trails: {e}"}), 500
 
