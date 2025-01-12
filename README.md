@@ -5,14 +5,14 @@
 This microservice manages trails and supports the following features:
 - Create, Read, Update, Delete (CRUD) operations on trails.
 - Authentication via an external Authenticator API.
-- Data storage in Microsoft SQL Server.
+- Data storage in Azure Data Studio.
 
 ## Technologies Used
 - Python (In VS Code)
 - Flask
 - Connexion (for Swagger/OpenAPI integration)
 - SQLAlchemy
-- Microsoft SQL Server
+- Azure Data Studio
 - Docker
 
 ## API Documentation
